@@ -1,26 +1,18 @@
 use rand:: thread_rng;
 use std::io::stdout;
 use std::{thread, time};
-
-use crossterm::{
-    cursor::{Hide, Show},
-    terminal::{disable_raw_mode, enable_raw_mode, size, Clear},
-    ExecutableCommand, QueueableCommand,
-};
+use piston_window::{PistonWindow, WindowSettings};
+use piston_window::*;
 
 mod physics;
 mod world;
-mod greeting;
 mod events;
 
 use world::world::{*};
 use physics::physics::{*};
-use greeting::greeting::{*};
 use events::events::{*};
 
 
-/// Game Physic Rules
-/// TODO: Move to Physics.rs module later
 fn physics(world: &mut World) {
     let mut rng = thread_rng();
 
@@ -50,37 +42,58 @@ fn physics(world: &mut World) {
 
 
 fn main() -> std::io::Result<()> {
-    // init the screen
-    let mut sc = stdout();
-    let (maxc, maxl) = size().unwrap();
-    sc.execute(Hide)?;
-    enable_raw_mode()?;
-
-    // init the world
+    let maxc = 1000;
+    let maxr = 800;
     let slowness = 100;
-    let mut world = World::new(maxc, maxl);
+    let mut world = World::new(maxc, maxr);
 
     // show welcoming banner
-    welcome_screen(&sc, &world);
+    // welcome_screen(&sc, &world);
 
-    while world.status == PlayerStatus::Alive || world.status == PlayerStatus::Paused {
-        handle_pressed_keys(&mut world);
-        if world.status != PlayerStatus::Paused {
-            physics(&mut world);
-            world.draw(&sc)?;
-        } else {
-            pause_screen(&sc, &world);
+    let mut window: PistonWindow =
+        WindowSettings::new("RiverRaid Example", [1000, 800])
+            .exit_on_esc(true).build().unwrap();
+
+
+    while let Some(event) = window.next() {
+        if let Some(Button::Keyboard(key)) = event.press_args() {
+            handle_pressed_keys(&mut world, key)
+            // player.update(key);
         }
-        thread::sleep(time::Duration::from_millis(slowness));
+
+        // Add this line inside the game loop to continuously update the player's position
+        if event.update_args().is_some() {
+            // player.auto_move();
+        }
+        physics(&mut world);
+        window.draw_2d(&event, |c, g, _| {
+            clear([0.5, 0.5, 1.0, 1.0], g); // Clear the screen with a blue-ish color
+            world.draw(c,g)
+            // player.render(c, g);
+        });
+
+        // thread::sleep(time::Duration::from_millis(slowness));
     }
-    
+
+
+    // while world.status == PlayerStatus::Alive || world.status == PlayerStatus::Paused {
+    //     handle_pressed_keys(&mut world);
+    //     if world.status != PlayerStatus::Paused {
+    //         physics(&mut world);
+    //         world.draw(&sc)?;
+    //     } else {
+    //         pause_screen(&sc, &world);
+    //     }
+    //     thread::sleep(time::Duration::from_millis(slowness));
+    // }
+    //
     
 
     // game is finished
-    sc.queue(Clear(crossterm::terminal::ClearType::All))?;
-    goodbye_screen(&sc, &world);
-    sc.queue(Clear(crossterm::terminal::ClearType::All))?
-        .execute(Show)?;
-    disable_raw_mode()?;
+    // sc.queue(Clear(crossterm::terminal::ClearType::All))?;
+    // goodbye_screen(&sc, &world);
+    // sc.queue(Clear(crossterm::terminal::ClearType::All))?
+    //     .execute(Show)?;
+    // disable_raw_mode()?;
     Ok(())
 }

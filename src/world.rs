@@ -1,15 +1,10 @@
 pub mod world {
-    use crossterm::{
-        cursor::MoveTo,
-        style::Print,
-        terminal::Clear,
-        QueueableCommand
-    };
-
     use std::{
         collections::VecDeque,
         io::{Stdout, Write},
     };
+    use std::ffi::c_float;
+    use piston_window::{Context, G2d, rectangle};
 
 
     #[derive(PartialEq, Eq)]
@@ -130,12 +125,12 @@ pub mod world {
         pub fn new(maxc: u16, maxl: u16) -> World {
             World {
                 player_location: Location::new(maxc / 2, maxl - 1),
-                map: VecDeque::from(vec![(maxc / 2 - 5, maxc / 2 + 5); maxl as usize]),
+                map: VecDeque::from(vec![(maxc / 2 - 2, maxc / 2 + 2); maxl as usize]),
                 maxc,
                 maxl,
                 status: PlayerStatus::Alive,
-                next_left: maxc / 2 - 7,
-                next_right: maxc / 2 + 7,
+                next_left: maxc / 2 - 1,
+                next_right: maxc / 2 + 1,
                 ship: 'P'.to_string(),
                 enemy: Vec::new(),
                 bullet: Vec::new(),
@@ -146,82 +141,116 @@ pub mod world {
             }
         }
 
-        pub fn draw(&mut self, mut sc: &Stdout) -> std::io::Result<()> {
-            sc.queue(Clear(crossterm::terminal::ClearType::All))?;
-        
-            // draw the map
+        pub fn draw(&mut self, c: Context, mut g: &mut G2d) -> std::io::Result<()> {
+            let times = 3;
             for l in 0..self.map.len() {
-                sc.queue(MoveTo(0, l as u16))?
-                    .queue(Print("+".repeat(self.map[l].0 as usize)))?
-                    .queue(MoveTo(self.map[l].1, l as u16))?
-                    .queue(Print("+".repeat((self.maxc - self.map[l].1) as usize)))?;
+                rectangle([0.0, 1.0, 0.0, 1.0], [0 as f64, l as f64, (self.map[l].0*times) as f64, 1.0], c.transform, g);
+                rectangle([0.0, 1.0, 0.0, 1.0], [(self.map[l].1*times) as f64, l as f64,
+                    ((self.maxc - self.map[l].1)*times) as f64, 1.0], c.transform, g)
             }
-        
-            sc.queue(MoveTo(2, 2))?
-                .queue(Print(format!(" Score: {} ", self.score)))?
-                .queue(MoveTo(2, 3))?
-                .queue(Print(format!(" Fuel: {} ", self.gas / 100)))?;
-        
-            // draw fuel
-            for index in (0..self.fuel.len()).rev() {
-                match self.fuel[index].status {
-                    EnemyStatus::Alive => {
-                        sc.queue(MoveTo(
-                            self.fuel[index].location.c,
-                            self.fuel[index].location.l,
-                        ))?
-                        .queue(Print("F"))?;
-                    }
-                    EnemyStatus::DeadBody => {
-                        sc.queue(MoveTo(
-                            self.fuel[index].location.c,
-                            self.fuel[index].location.l,
-                        ))?
-                        .queue(Print("$"))?;
-                        self.fuel[index].status = EnemyStatus::Dead;
-                    }
-                    EnemyStatus::Dead => {
-                        self.fuel.remove(index);
-                    }
-                };
-            }
-        
-            // draw enemies
-            for index in (0..self.enemy.len()).rev() {
-                match self.enemy[index].status {
-                    EnemyStatus::Alive => {
-                        sc.queue(MoveTo(
-                            self.enemy[index].location.c,
-                            self.enemy[index].location.l,
-                        ))?
-                        .queue(Print("E"))?;
-                    }
-                    EnemyStatus::DeadBody => {
-                        sc.queue(MoveTo(
-                            self.enemy[index].location.c,
-                            self.enemy[index].location.l,
-                        ))?
-                        .queue(Print("X"))?;
-                        self.enemy[index].status = EnemyStatus::Dead;
-                    }
-                    EnemyStatus::Dead => {
-                        self.enemy.remove(index);
-                    }
-                };
-            }
-        
-            // draw bullet
-            for b in &self.bullet {
-                sc.queue(MoveTo(b.location.c, b.location.l))?
-                    .queue(Print("|"))?
-                    .queue(MoveTo(b.location.c, b.location.l - 1))?
-                    .queue(Print("^"))?;
-            }
-        
-            // draw the player
-            sc.queue(MoveTo(self.player_location.c, self.player_location.l))?
-                .queue(Print(self.ship.as_str()))?
-                .flush()?;
+
+
+            // for index in (0..self.enemy.len()).rev() {
+            //     match self.enemy[index].status {
+            //         EnemyStatus::Alive => {
+            //             rectangle([0.0, 1.0, 0.5, 1.0], [self.enemy[index].location.c as f64,
+            //                 self.enemy[index].location.l as f64, 5.0, 5.0], c.transform, g);
+            //         }
+            //         EnemyStatus::DeadBody => {
+            //             rectangle([0.5, 1.0, 0.5, 1.0], [self.enemy[index].location.c as f64,
+            //                 self.enemy[index].location.l as f64, 5.0, 5.0], c.transform, g);
+            //             self.enemy[index].status = EnemyStatus::Dead;
+            //         }
+            //         EnemyStatus::Dead => {
+            //             self.enemy.remove(index);
+            //         }
+            //     };
+            // }
+
+            // // draw the player
+            // sc.queue(MoveTo(self.player_location.c, self.player_location.l))?
+            //     .queue(Print(self.ship.as_str()))?
+            //     .flush()?;
+
+            rectangle([1.0, 1.0, 0.0, 1.0], [self.player_location.c as f64, (self.player_location.l - 20) as f64, 20.0, 20.0], c.transform, g);
+            //     .queue(Print(self.ship.as_str()))?
+            //     .flush()?;
+
+            //
+            // // draw the map
+            // for l in 0..self.map.len() {
+            //
+            //     sc.queue(MoveTo(0, l as u16))?
+            //         .queue(Print("+".repeat(self.map[l].0 as usize)))?
+            //         .queue(MoveTo(self.map[l].1, l as u16))?
+            //         .queue(Print("+".repeat((self.maxc - self.map[l].1) as usize)))?;
+            // }
+            //
+            // sc.queue(MoveTo(2, 2))?
+            //     .queue(Print(format!(" Score: {} ", self.score)))?
+            //     .queue(MoveTo(2, 3))?
+            //     .queue(Print(format!(" Fuel: {} ", self.gas / 100)))?;
+            //
+            // // draw fuel
+            // for index in (0..self.fuel.len()).rev() {
+            //     match self.fuel[index].status {
+            //         EnemyStatus::Alive => {
+            //             sc.queue(MoveTo(
+            //                 self.fuel[index].location.c,
+            //                 self.fuel[index].location.l,
+            //             ))?
+            //             .queue(Print("F"))?;
+            //         }
+            //         EnemyStatus::DeadBody => {
+            //             sc.queue(MoveTo(
+            //                 self.fuel[index].location.c,
+            //                 self.fuel[index].location.l,
+            //             ))?
+            //             .queue(Print("$"))?;
+            //             self.fuel[index].status = EnemyStatus::Dead;
+            //         }
+            //         EnemyStatus::Dead => {
+            //             self.fuel.remove(index);
+            //         }
+            //     };
+            // }
+            //
+            // // draw enemies
+            // for index in (0..self.enemy.len()).rev() {
+            //     match self.enemy[index].status {
+            //         EnemyStatus::Alive => {
+            //             sc.queue(MoveTo(
+            //                 self.enemy[index].location.c,
+            //                 self.enemy[index].location.l,
+            //             ))?
+            //             .queue(Print("E"))?;
+            //         }
+            //         EnemyStatus::DeadBody => {
+            //             sc.queue(MoveTo(
+            //                 self.enemy[index].location.c,
+            //                 self.enemy[index].location.l,
+            //             ))?
+            //             .queue(Print("X"))?;
+            //             self.enemy[index].status = EnemyStatus::Dead;
+            //         }
+            //         EnemyStatus::Dead => {
+            //             self.enemy.remove(index);
+            //         }
+            //     };
+            // }
+            //
+            // // draw bullet
+            // for b in &self.bullet {
+            //     sc.queue(MoveTo(b.location.c, b.location.l))?
+            //         .queue(Print("|"))?
+            //         .queue(MoveTo(b.location.c, b.location.l - 1))?
+            //         .queue(Print("^"))?;
+            // }
+            //
+            // // draw the player
+            // sc.queue(MoveTo(self.player_location.c, self.player_location.l))?
+            //     .queue(Print(self.ship.as_str()))?
+            //     .flush()?;
         
             Ok(())
         }
